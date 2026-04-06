@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ETB ↔ USD — RMI Currency Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:        #0b0e11;
+    --surface:   #13181f;
+    --surface2:  #1b2330;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.13);
+    --gold:      #d4a843;
+    --gold-dim:  rgba(212,168,67,0.15);
+    --gold-glow: rgba(212,168,67,0.08);
+    --green:     #3ecf8e;
+    --green-dim: rgba(62,207,142,0.12);
+    --red:       #f05e5e;
+    --text:      #e8e4d9;
+    --muted:     #7a8492;
+    --faint:     #3a4150;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 48px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* background pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(212,168,67,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(62,207,142,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin-bottom: 36px;
+    animation: fadeUp .6s ease both;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(212,168,67,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(26px, 5vw, 38px);
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  h1 em { font-style: italic; color: var(--gold); }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    font-weight: 300;
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 28px;
+    position: relative;
+    z-index: 1;
+    animation: fadeUp .6s .1s ease both;
+    flex-wrap: wrap;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  .rate-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+  }
+
+  /* ── MAIN CARD ── */
+  .card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    padding: 28px;
+    animation: fadeUp .6s .2s ease both;
+  }
+
+  /* direction toggle */
+  .direction-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: var(--bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 4px;
+    margin-bottom: 24px;
+  }
+
+  .dir-btn {
+    padding: 10px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all .2s ease;
+    letter-spacing: 0.02em;
+  }
+
+  .dir-btn.active {
+    background: var(--gold-dim);
+    color: var(--gold);
+    border: 1px solid rgba(212,168,67,0.25);
+  }
+
+  /* input group */
+  .input-group {
+    margin-bottom: 8px;
+  }
+
+  .input-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    transition: border-color .2s;
+    overflow: hidden;
+  }
+
+  .input-wrap:focus-within {
+    border-color: rgba(212,168,67,0.4);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+  }
+
+  .currency-flag {
+    padding: 0 14px;
+    font-size: 20px;
+    border-right: 1px solid var(--border);
+    height: 54px;
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    gap: 8px;
+  }
+
+  .currency-code {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .amount-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    padding: 0 16px;
+    height: 54px;
+    width: 100%;
+  }
+
+  .amount-input::placeholder { color: var(--faint); }
+
+  /* swap button */
+  .swap-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0;
+  }
+
+  .swap-line { flex: 1; height: 1px; background: var(--border); }
+
+  .swap-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: all .2s;
+  }
+
+  .swap-btn:hover {
+    border-color: rgba(212,168,67,0.3);
+    color: var(--gold);
+    transform: rotate(180deg);
+  }
+
+  /* result */
+  .result-wrap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .result-inner {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .result-flag {
+    padding: 0 14px;
+    font-size: 20px;
+    border-right: 1px solid var(--border);
+    height: 54px;
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    gap: 8px;
+  }
+
+  .result-amount {
+    flex: 1;
+    padding: 0 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: -0.5px;
+    transition: all .3s ease;
+  }
+
+  .result-amount.flash {
+    animation: flashGreen .4s ease;
+  }
+
+  @keyframes flashGreen {
+    0%   { color: #fff; }
+    100% { color: var(--green); }
+  }
+
+  /* convert button */
+  .convert-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(212,168,67,0.3);
+    border-radius: 12px;
+    color: var(--gold);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all .2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .convert-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(212,168,67,0.08), transparent);
+    transform: translateX(-100%);
+    transition: transform .4s ease;
+  }
+
+  .convert-btn:hover::before { transform: translateX(100%); }
+  .convert-btn:hover {
+    background: rgba(212,168,67,0.22);
+    border-color: rgba(212,168,67,0.5);
+  }
+  .convert-btn:active { transform: scale(0.985); }
+
+  /* ── BREAKDOWN CARD ── */
+  .breakdown {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px 24px;
+    margin-top: 12px;
+    animation: fadeUp .6s .3s ease both;
+  }
+
+  .breakdown-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-weight: 500;
+  }
+
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-key { color: var(--muted); }
+  .breakdown-val { font-family: 'DM Mono', monospace; color: var(--text); font-size: 12px; }
+  .breakdown-val.gold { color: var(--gold); }
+
+  /* ── LOG ── */
+  .log-card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    overflow: hidden;
+    margin-top: 12px;
+    animation: fadeUp .6s .4s ease both;
+  }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-title {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .log-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    background: var(--gold-dim);
+    border: 1px solid rgba(212,168,67,0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .log-body {
+    background: #090c0f;
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px;
+    padding: 14px 18px;
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .log-entry {
+    line-height: 1.6;
+    opacity: 0;
+    animation: slideIn .3s ease forwards;
+  }
+
+  .log-entry .ts  { color: #3a4a5a; }
+  .log-entry .srv { color: #5a7a5a; }
+  .log-entry .method { color: #d4a843; }
+  .log-entry .nums  { color: var(--green); }
+  .log-entry .arrow { color: #3a4150; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── QUICK AMOUNTS ── */
+  .quick-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .quick-btn {
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .quick-btn:hover {
+    border-color: rgba(212,168,67,0.3);
+    color: var(--gold);
+    background: var(--gold-dim);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* scrollbar */
+  .log-body::-webkit-scrollbar { width: 3px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 2px; }
+
+  /* RMI call animation overlay */
+  .rmi-flash {
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    border: 1px solid rgba(212,168,67,0.5);
+    opacity: 0;
+    pointer-events: none;
+    animation: rmiFlash .5s ease forwards;
+  }
+
+  @keyframes rmiFlash {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<header>
+  <div class="logo-row">
+    <div class="logo-icon">⇄</div>
+    <h1>ETB <em>&</em> USD</h1>
+  </div>
+  <p class="subtitle">Java RMI Currency Converter &mdash; Live Web Interface</p>
+</header>
+
+<div class="status-bar">
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    <span style="color:var(--green)">RMI Server</span>
+    <span>rmi://localhost:1099</span>
+  </div>
+  <div class="status-pill">
+    <span>Rate</span>
+    <span class="rate-badge" id="rate-display">1 USD = 155.80 ETB</span>
+  </div>
+</div>
+
+<!-- MAIN CARD -->
+<div class="card" id="main-card">
+  <div class="direction-toggle">
+    <button class="dir-btn active" id="btn-usd" onclick="setDirection('usd')">USD → ETB</button>
+    <button class="dir-btn" id="btn-etb" onclick="setDirection('etb')">ETB → USD</button>
+  </div>
+
+  <div class="input-group">
+    <div class="input-label" id="from-label">Amount to convert</div>
+    <div class="input-wrap">
+      <div class="currency-flag" id="from-flag">
+        <span>🇺🇸</span>
+        <span class="currency-code" id="from-code">USD</span>
+      </div>
+      <input
+        class="amount-input"
+        type="number"
+        id="amount"
+        placeholder="0.00"
+        value="100"
+        min="0"
+        oninput="liveConvert()"
+      />
+    </div>
+    <div class="quick-row" id="quick-row"></div>
+  </div>
+
+  <div class="swap-row">
+    <div class="swap-line"></div>
+    <button class="swap-btn" onclick="swapDirection()" title="Swap direction">⇅</button>
+    <div class="swap-line"></div>
+  </div>
+
+  <div class="input-group">
+    <div class="input-label">Converted amount</div>
+    <div class="result-wrap">
+      <div class="result-inner">
+        <div class="result-flag" id="to-flag">
+          <span>🇪🇹</span>
+          <span class="currency-code" id="to-code">ETB</span>
+        </div>
+        <div class="result-amount" id="result-val">15,580.00</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="convert-btn" onclick="doConvert()">
+    Call RMI Remote Method &nbsp;⟶
+  </button>
+</div>
+
+<!-- BREAKDOWN -->
+<div class="breakdown">
+  <div class="breakdown-title">Conversion breakdown</div>
+  <div class="breakdown-row">
+    <span class="breakdown-key">Method called</span>
+    <span class="breakdown-val gold" id="bd-method">usdToBirr(double)</span>
+  </div>
+  <div class="breakdown-row">
+    <span class="breakdown-key">Exchange rate</span>
+    <span class="breakdown-val" id="bd-rate">1 USD = 155.80 ETB</span>
+  </div>
+  <div class="breakdown-row">
+    <span class="breakdown-key">Formula</span>
+    <span class="breakdown-val" id="bd-formula">100 × 155.80</span>
+  </div>
+  <div class="breakdown-row">
+    <span class="breakdown-key">Result</span>
+    <span class="breakdown-val gold" id="bd-result">15,580.00 ETB</span>
+  </div>
+  <div class="breakdown-row">
+    <span class="breakdown-key">Total RMI calls</span>
+    <span class="breakdown-val gold" id="bd-calls">0</span>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="log-card">
+  <div class="log-header">
+    <span class="log-title">Server call log</span>
+    <span class="log-count" id="log-count">0 calls</span>
+  </div>
+  <div class="log-body" id="log-body">
+    <div class="log-entry">
+      <span class="ts">[00:00:00]</span>
+      <span class="srv"> [Server] </span>
+      <span style="color:#3a4a5a">Waiting for RMI calls...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const RATE = 155.80;
+let direction = 'usd';
+let callCount = 0;
+
+const quickAmountsUSD = [50, 100, 500, 1000];
+const quickAmountsETB = [1000, 5000, 10000, 50000];
+
+function buildQuickBtns() {
+  const row = document.getElementById('quick-row');
+  const amounts = direction === 'usd' ? quickAmountsUSD : quickAmountsETB;
+  const sym = direction === 'usd' ? '$' : 'ETB ';
+  row.innerHTML = amounts.map(a =>
+    `<button class="quick-btn" onclick="setAmount(${a})">${sym}${a.toLocaleString()}</button>`
+  ).join('');
+}
+
+function setAmount(v) {
+  document.getElementById('amount').value = v;
+  liveConvert();
+}
+
+function setDirection(dir) {
+  direction = dir;
+  document.getElementById('btn-usd').classList.toggle('active', dir === 'usd');
+  document.getElementById('btn-etb').classList.toggle('active', dir === 'etb');
+  document.getElementById('from-flag').innerHTML =
+    dir === 'usd'
+      ? '<span>🇺🇸</span><span class="currency-code" id="from-code">USD</span>'
+      : '<span>🇪🇹</span><span class="currency-code" id="from-code">ETB</span>';
+  document.getElementById('to-flag').innerHTML =
+    dir === 'usd'
+      ? '<span>🇪🇹</span><span class="currency-code" id="to-code">ETB</span>'
+      : '<span>🇺🇸</span><span class="currency-code" id="to-code">USD</span>';
+  buildQuickBtns();
+  liveConvert();
+}
+
+function swapDirection() {
+  setDirection(direction === 'usd' ? 'etb' : 'usd');
+}
+
+function liveConvert() {
+  const amt = parseFloat(document.getElementById('amount').value) || 0;
+  const result = direction === 'usd' ? amt * RATE : amt / RATE;
+  const decimals = direction === 'usd' ? 2 : 4;
+  const toCur = direction === 'usd' ? 'ETB' : 'USD';
+  document.getElementById('result-val').textContent =
+    result.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  updateBreakdown(amt, result, decimals, toCur);
+}
+
+function updateBreakdown(amt, result, decimals, toCur) {
+  const method = direction === 'usd' ? 'usdToBirr(double)' : 'birrToUSD(double)';
+  const formula = direction === 'usd'
+    ? `${amt.toFixed(2)} × ${RATE}`
+    : `${amt.toFixed(2)} ÷ ${RATE}`;
+  document.getElementById('bd-method').textContent = method;
+  document.getElementById('bd-formula').textContent = formula;
+  document.getElementById('bd-result').textContent =
+    result.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' ' + toCur;
+}
+
+function doConvert() {
+  const amt = parseFloat(document.getElementById('amount').value);
+  if (!amt || amt < 0) return;
+
+  const result = direction === 'usd' ? amt * RATE : amt / RATE;
+  const method = direction === 'usd' ? 'usdToBirr' : 'birrToUSD';
+  const fromCur = direction === 'usd' ? 'USD' : 'ETB';
+  const toCur   = direction === 'usd' ? 'ETB' : 'USD';
+  const decimals = direction === 'usd' ? 2 : 4;
+
+  callCount++;
+  document.getElementById('bd-calls').textContent = callCount;
+  document.getElementById('log-count').textContent = callCount + (callCount === 1 ? ' call' : ' calls');
+
+  const rv = document.getElementById('result-val');
+  rv.textContent = result.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  rv.classList.remove('flash');
+  void rv.offsetWidth;
+  rv.classList.add('flash');
+
+  // RMI flash on card
+  const card = document.getElementById('main-card');
+  const flash = document.createElement('div');
+  flash.className = 'rmi-flash';
+  card.style.position = 'relative';
+  card.appendChild(flash);
+  setTimeout(() => flash.remove(), 500);
+
+  // Log entry
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  const log = document.getElementById('log-body');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML =
+    `<span class="ts">[${ts}]</span>` +
+    `<span class="srv"> [Server] </span>` +
+    `<span class="method">${method}</span>` +
+    `<span class="arrow">: </span>` +
+    `<span class="nums">${amt.toFixed(2)} ${fromCur}</span>` +
+    `<span class="arrow"> → </span>` +
+    `<span class="nums">${result.toFixed(decimals)} ${toCur}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+
+  updateBreakdown(amt, result, decimals, toCur);
+}
+
+// init
+buildQuickBtns();
+liveConvert();
+</script>
+</body>
+</html>
